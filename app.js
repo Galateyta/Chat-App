@@ -40,25 +40,23 @@ io.on('connection', function(socket) {
 
 
     socket.on('createRoom', (roomName) => {
-        if (!(roomName in limits)) {
-            limits.roomName = {currentRoomCount: 0, maxRoomCount: 2};
+        if (!limits.hasOwnProperty(roomName)) {
+            limits[roomName] = {currentRoomCount: 0, maxRoomCount: 2};
         }
-        if (limits.roomName.currentRoomCount >= limits.roomName.maxRoomCount) {
+        if (limits[roomName].currentRoomCount >= limits[roomName].maxRoomCount) {
             console.log('I\'m sorry, too many connections');
             socket.emit('disconnect', 'I\'m sorry, too many connections');
             socket.disconnect();
         } else {
-            limits.roomName.currentRoomCount++;
+            limits[roomName].currentRoomCount++;
             for(const room in io.sockets.adapter.rooms){
                 socket.leave(room);
             }
             const room = socket.join(roomName);
-            console.log(room);
             room.on('leave', function() {
                 console.log('leave');
-                limits.roomName.currentRoomCount--;
+                limits[roomName].currentRoomCount--;
             });
         }
-        console.log(socket);
     });
 });
