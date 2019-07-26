@@ -2,12 +2,16 @@ const User = require('../models/user.js');
 
 async function addUser(user) {
     try {
-        const foundUser = await User.find({name: user.name});
-        if (!foundUser) {
+        const foundUser = await User.find({
+            name: user.name
+        });
+        if (foundUser.length === 0) {
             throw new Error();
         }
+
         console.error('err', `User already saved`);
-        return foundUser.uid;
+        console.log("aaaaaa" + foundUser[0].uid);
+        return foundUser[0].uid;
     } catch {
         const newUser = new User(user);
         try {
@@ -18,45 +22,30 @@ async function addUser(user) {
     }
 }
 
-async function getUsers({
-    id = null
-} = {
-    id: null
-}) {
-    if (id) {
-        try {
-            const user = await User.findById(id);
-            if (!user) {
-                console.error('err', `User by id ${id} not found`);
+async function getUsers(body) {
+    try {
+        const user = await User.find(body);
 
-                res.status(404).json({
-                    message: `User by id ${id} not found`
-                });
-                return;
-            }
-            res.status(200).json(user);
-        } catch (err) {
-            res.status(404).json(err);
+        if (!user) {
+            console.error('err', "No record found");
+            throw new Error();
         }
-    } else {
-        try {
-            const user = await User.find({});
 
-            if (!user) {
-                console.error('err', "No record found");
+        return user;
+    } catch (err) {
+        console.error('err', `res /users ${JSON.stringify(err)}`);
+    }
+}
 
-                res.status(404).json({
-                    message: "No record found"
-                });
-                return;
-            }
-            res.status(200).json(user);
-        } catch (err) {
-            console.error('err', `res /users ${JSON.stringify(err)}`);
-            res.status(400).json(err);
-        }
+async function updateUser(body, update) {
+    try {
+        await User.updateMany(body, update, {runValidators: true});
+        return 0;
+    } catch (err) {
+        return err;
     }
 }
 
 module.exports.addUser = addUser;
 module.exports.getUsers = getUsers;
+module.exports.updateUser = updateUser;

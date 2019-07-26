@@ -8,13 +8,15 @@ const UserSchema = new mongoose.Schema({
         required: 'name can\'t be empty'
     },
     friends: [String],
-    chats: [{
+    chats: [
+        {
         friendId: String,
         messages: [{
             author: String,
             message: String
         }]
-    }]
+    }
+]
 });
 const User = mongoose.model('User', UserSchema);
 module.exports = User;
