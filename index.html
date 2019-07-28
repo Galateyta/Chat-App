@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Socket.io Chat</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+  <style>
+    .chat-form {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <form class="username-form">
+    <div style=" width: 20%;margin: auto;">
+      <h2 style="margin-left: 40px; margin: 25px 0 0 120px"> Sign In </h2>
+      <input type="text" id="username" style="height: 40px;align-items: center;margin:30px 0 0 0;width:300px"
+        placeholder="Enter your name" />
+      <input type="submit" class="btn btn-primary" value="Join" style="align-items: center;" />
+    </div>
+  </form>
+
+  <div class="chat-form">
+
+    <div class="container" style="margin-top: 20px ">
+
+      <div class="row bg-primary">
+        
+        <div class="col-3" style="color:#fff">
+          <h3 style="text-align: center;">Friends</h3>
+        </div>
+        <div class="col-5" id="name" style="color:#fff">
+          <h3 style="text-align: center;" id="uName"> Name </h3>
+        </div>
+        <div class="col-4" style="color:#fff;">
+          <h3 style="text-align: center;"> Posts </h3>
+        </div>
+
+      </div>
+
+      <div class="row" >
+
+        <div class="col-3 border border-primary" id="friends"> </div>
+        <div class="col-5" >
+          <ul id="messages"> </ul>
+        </div>
+        <div class="col-4 border border-primary" style="height: 550px; overflow: scroll;">
+          <ul id="publicMessages"> </ul>
+        </div>
+
+      </div>
+
+      <div class="row ">
+
+        <div class="col-3 border border-primary"> </div>
+
+        <div class="col-5 col-auto border border-primary input-group">
+          <input id="textarea" type="text" placeholder="Enter your message " style="width: 85%">
+          <div class="input-group-prepend">
+            <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+          </div>
+        </div>
+
+        <div class="col-4 col-auto border border-primary input-group">
+          <input id="publicText" type="text" placeholder="Enter your message " style="width: 80%">
+          <div class="input-group-prepend">
+            <button class="btn btn-primary" onclick="sendPublicMessage()">Send</button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+
+    const socket = io.connect('http://localhost:4000/');
+    let name;
+    let allMess;
+    let username;
+    const chat_form = $(".chat-form");
+
+    // Add a username
+    $(".username-form").on("submit", function () {
+
+      username = document.getElementById('username').value;
+      
+      // Tell the server about it
+      socket.emit("add-user", {
+        "username": username
+      });
+
+      // Remove this form and show the chat form
+      $(this).remove();
+      $("#username").text(username);
+      $("#uName").text(username);
+      chat_form.show();
+      
+      return false;
+
+    });
+    
+    //--------------------------------------------------------------------------------------------------------------------
+
+    //chat form
+
+    //Send Public Message to the server 
+    function sendPublicMessage() {
+
+      let publicData = {
+        "author": username,
+        "message": document.getElementById("publicText").value
+      };
+
+      // Send the message to the server      
+      socket.emit("public-message", publicData);
+
+      document.getElementById("publicText").value = ""
+      return false;
+
+    }
+
+    //recive and show public messages 
+    socket.on('public-message', function(msg){
+      
+      if(Array.isArray(msg)) {
+        for (const messageInfo of msg) {
+          $('#publicMessages').append($('<li>').text(messageInfo.author + ": " + messageInfo.message));
+        }
+      } else {
+        $('#publicMessages').append($('<li>').text(msg.author + ": " + msg.message));
+      }
+  
+
+    });
+
+    function buttonClick(name) {
+      $("#uName").text(username + " - " + name);
+      document.getElementById("messages").innerHTML = n;
+      
+      //show private message
+      for (const messageInf of allMess) {
+        if(messageInf.receiver == name || messageInf.author == name ) {
+          $("#messages").append($("<li>", {
+          "text": `${messageInf.author}: ${messageInf.message}`
+        }));
+        } 
+
+      }
+
+    }
+    
+    //senc private message to the server
+    function sendMessage() {
+
+      const data = {
+        "sendername": username,
+        "username": name,
+        "content": document.getElementById("textarea").value
+      };
+
+      // Send the message to the server      
+      socket.emit("private-message", data);
+
+      $("#messages").append($("<li>", {
+        "text": `${data.sendername}: ${data.content}`
+      }));
+
+      // Empty the form
+      document.getElementById("textarea").value = ""
+      return false;
+    }
+
+    // Whenever we receieve a message, append it to the <ul>
+    socket.on("add-message", function (data) {
+      if(data.sendername == name){
+        $("#messages").append($("<li>", {
+          "text": `${data.sendername}: ${data.content}`
+        }));
+      }
+    });
+
+    //recive message 
+    socket.on("getAllMessages", function (messages) {
+      allMess = messages;
+    });
+
+    //add card for each user 
+    socket.on("getUsers", (users) => {
+      let cards = ``;
+      for (const user of users) {
+        if(user.name != username) {
+          const card = `
+          <div class="card mb-3" style="max-width: 540px;">
+            <div class="row no-gutters">
+              <div class="col-md-5" >
+                <img style="max-width:60px; max-height:60px;margin:10px 0 0 10px" src="http://crvsinnovations.net/wp-content/uploads/2018/02/Empty-Icon.png" class="card-img"
+                  alt="..." >
+              </div>
+              <div class="col-md-7">
+                <div class="card-body">
+                  <button type="button" id=${user.uid} class="btn btn-primary" onclick="buttonClick('${user.uid}')">${user.name}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          `;      
+
+          cards += card;
+        }
+ 
+      }     
+
+      document.getElementById('friends').insertAdjacentHTML('beforeend', cards);
+
+    });
+
+
+  </script>
+</body>
+
+</html>
