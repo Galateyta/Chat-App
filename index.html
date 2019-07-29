@@ -144,13 +144,14 @@
 
     });
 
-    function buttonClick(name) {
-      $("#uName").text(username + " - " + name);
+    function buttonClick(receiver) {
+      name = receiver;
+      $("#uName").text(username + " - " + receiver);
       document.getElementById("messages").innerHTML = n;
       
       //show private message
       for (const messageInf of allMess) {
-        if(messageInf.receiver == name || messageInf.author == name ) {
+        if(messageInf.receiver == receiver || messageInf.author == receiver ) {
           $("#messages").append($("<li>", {
           "text": `${messageInf.author}: ${messageInf.message}`
         }));
@@ -162,7 +163,6 @@
     
     //senc private message to the server
     function sendMessage() {
-
       const data = {
         "sendername": username,
         "username": name,

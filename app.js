@@ -7,11 +7,11 @@ const server = app.listen(4000);
 const io = require('socket.io')(server);
 
 const clients = {};
-let uid ;
+let uid;
 
 console.log("Server running on 4000 port");
 app.get('/', (req, res) => {
-  console.log("read file ");  
+  console.log("read file ");
   fs.readFile(__dirname + '/index.html',
     function (err, data) {
       if (err) {
@@ -26,16 +26,23 @@ app.get('/', (req, res) => {
 io.sockets.on('connection', function (socket) {
 
   //senc and recive public message
-  socket.on('public-message', function(publicData){
+  socket.on('public-message', function (publicData) {
 
     const updateMess = {
       $push: {
-        publicChat: {messages: {author: publicData.author, message: publicData.message}}
+        publicChat: {
+          messages: {
+            author: publicData.author,
+            message: publicData.message
+          }
+        }
       }
-    }  
+    }
 
     //update chat in db
-    userController.updateUser({}, updateMess, {runValidators: true});
+    userController.updateUser({}, updateMess, {
+      runValidators: true
+    });
     io.emit('public-message', publicData);
 
   });
@@ -60,7 +67,9 @@ io.sockets.on('connection', function (socket) {
       "socket": socket.id
     };
 
-    const user = await userController.getUsers({uid: uid});
+    const user = await userController.getUsers({
+      uid: uid
+    });
     let messages = [];
 
     for (const chat of user[0].chats) {
@@ -72,13 +81,13 @@ io.sockets.on('connection', function (socket) {
       for (const chat of user[0].publicChat) {
         pMessages = pMessages.concat(chat.messages);
       }
-      
+
       //send message to the client
       socket.emit("public-message", pMessages);
-      
+
     } catch {
       console.log("public chat chi gtnvel");
-      
+
     }
 
     //send private message ti the client
@@ -91,7 +100,7 @@ io.sockets.on('connection', function (socket) {
 
   socket.on('private-message', async (data) => {
 
-     uid = data.username;
+    uid = data.username;
 
     console.log("Sender: " + data.sendername + " Sending: " + data.content + " to " + data.username);
 
@@ -104,7 +113,7 @@ io.sockets.on('connection', function (socket) {
     const recuser = await userController.getUsers({
       name: data.username
     });
-    
+
     const recUid = recuser[0] ? recuser[0].uid : null
 
     if (clients[recUid]) {
@@ -120,46 +129,74 @@ io.sockets.on('connection', function (socket) {
 
       //console.log('found1', found);
       if (found) {
-        
+
         const update = {
           $push: {
-            chats : {messages: {author: data.sendername, message: data.content, receiver:data.username}}
+            chats: {
+              messages: {
+                author: data.sendername,
+                message: data.content,
+                receiver: data.username
+              }
+            }
           }
-        }      
+        }
 
-        userController.updateUser({name: data.sendername}, update, {runValidators: true});
+        userController.updateUser({
+          name: data.sendername
+        }, update, {
+          runValidators: true
+        });
 
-        const user1 = await userController.getUsers({uid: uid});
-        
+        const user1 = await userController.getUsers({
+          uid: uid
+        });
+
         let messages = [];
         for (const chat of user1[0].chats) {
           messages = messages.concat(chat.messages);
         }
-        
+
         io.sockets.connected[clients[uid].socket].emit("getAllMessages", messages);
         console.log(messages);
-        
+
 
       } else {
-        
+
         const update = {
           $push: {
-            chats: {messages: {author: data.sendername,  message: data.content, receiver:data.username}}
+            chats: {
+              messages: {
+                author: data.sendername,
+                message: data.content,
+                receiver: data.username
+              }
+            }
           }
         }
-        
-        userController.updateUser({name: data.sendername}, update, {runValidators: true});
-        userController.updateUser({name: data.username}, update, {runValidators: true});
 
-        const user1 = await userController.getUsers({uid: uid});
+        userController.updateUser({
+          name: data.sendername
+        }, update, {
+          runValidators: true
+        });
+        userController.updateUser({
+          name: data.username
+        }, update, {
+          runValidators: true
+        });
+
+        const user1 = await userController.getUsers({
+          uid: uid
+        });
         let messages = [];
 
         for (const chat of user1[0].chats) {
           messages = messages.concat(chat.messages);
         }
-        
+
         io.sockets.connected[clients[uid].socket].emit("getAllMessages", messages);
-        console.log(messages);        
+        console.log(messages);
 
       }
 
@@ -172,47 +209,125 @@ io.sockets.on('connection', function (socket) {
         }
       }
       if (found) {
-        
+
         const update = {
           $push: {
-            chats: {messages: {author: senderUid, message: data.content,receiver:data.username}}
+            chats: {
+              messages: {
+                author: senderUid,
+                message: data.content,
+                receiver: data.username
+              }
+            }
           }
         }
 
-        userController.updateUser({name: data.username}, update, {runValidators: true})
-        const user1 = await userController.getUsers({uid: uid});
+        userController.updateUser({
+          name: data.username
+        }, update, {
+          runValidators: true
+        })
+        const user1 = await userController.getUsers({
+          uid: uid
+        });
         let messages = [];
 
         for (const chat of user1[0].chats) {
           messages = messages.concat(chat.messages);
         }
-        
+
         io.sockets.connected[clients[uid].socket].emit("getAllMessages", messages);
         console.log(messages);
-        
+
       } else {
-        
+
         const update = {
           $push: {
-            chats: {messages: {author: data.sendername, message: data.content, receiver:data.username}}
+            chats: {
+              messages: {
+                author: data.sendername,
+                message: data.content,
+                receiver: data.username
+              }
+            }
           }
         }
 
-        userController.updateUser({name: data.username}, update, {runValidators: true})
-        const user1 = await userController.getUsers({uid: data.username});
+        userController.updateUser({
+          name: data.username
+        }, update, {
+          runValidators: true
+        })
+        const user1 = await userController.getUsers({
+          uid: data.username
+        });
         let messages = [];
 
         for (const chat of user1[0].chats) {
           messages = messages.concat(chat.messages);
         }
-        
+
         io.sockets.connected[clients[uid].socket].emit("getAllMessages", messages);
         console.log(messages);
-        
+
 
       }
     } else {
-   //   console.log("User does not exist: " + recUid);
+      console.log("User does not exist: " + recUid);
+
+      let found = false;
+      for (const chat of senderuser[0].chats) {
+        if (chat.friendId === recUid) {
+          found = true;
+          break;
+        }
+      }
+
+      //console.log('found1', found);
+      if (found) {
+
+        const update = {
+          $push: {
+            chats: {
+              messages: {
+                author: data.sendername,
+                message: data.content,
+                receiver: data.username
+              }
+            }
+          }
+        }
+
+        userController.updateUser({
+          name: data.sendername
+        }, update, {
+          runValidators: true
+        });
+      } else {
+
+        const update = {
+          $push: {
+            chats: {
+              messages: {
+                author: data.sendername,
+                message: data.content,
+                receiver: data.username
+              }
+            }
+          }
+        }
+
+        userController.updateUser({
+          name: data.sendername
+        }, update, {
+          runValidators: true
+        });
+        userController.updateUser({
+          name: data.username
+        }, update, {
+          runValidators: true
+        });
+      }
     }
   });
 
