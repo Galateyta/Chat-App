@@ -15,8 +15,17 @@ const UserSchema = new mongoose.Schema({
             author: String,
             message: String
         }]
-    }
-]
+    }],
+    
+    publicChat: [{
+        messages: [{
+            author: String,
+            message: String,
+        }]
+    }]
 });
+
+
 const User = mongoose.model('User', UserSchema);
+
 module.exports = User;

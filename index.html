@@ -15,6 +15,7 @@
 </head>
 
 <body>
+
   <form class="username-form">
     <div style=" width: 20%;margin: auto;">
       <h2 style="margin-left: 40px; margin: 25px 0 0 120px"> Sign In </h2>
@@ -23,66 +24,73 @@
       <input type="submit" class="btn btn-primary" value="Join" style="align-items: center;" />
     </div>
   </form>
+
   <div class="chat-form">
-    <div>
-      <h1> </h1>
-    </div>
-    <div class="container">
+
+    <div class="container" style="margin-top: 20px ">
+
       <div class="row bg-primary">
-        <div class="col-2" style="color:#fff">
+
+        <div class="col-3" style="color:#fff">
           <h3 style="text-align: center;">Friends</h3>
         </div>
-        <div class="col-6" id="name" style="color:#fff">
-          <h3 style="text-align: center;"> Name </h3>
+        <div class="col-5" id="name" style="color:#fff">
+          <h3 style="text-align: center;" id="uName"> Name </h3>
         </div>
         <div class="col-4" style="color:#fff;">
           <h3 style="text-align: center;"> Posts </h3>
         </div>
+
       </div>
 
       <div class="row">
-        <div class="col-2 border border-primary" id="friends">
-          
+
+        <div class="col-3 border border-primary" id="friends"> </div>
+        <div class="col-5">
+          <ul id="messages"> </ul>
+        </div>
+        <div class="col-4 border border-primary" style="height: 550px; overflow: scroll;">
+          <ul id="publicMessages"> </ul>
         </div>
 
-        <div class="col-6">
-          <ul id="messages">
-          </ul>
-        </div>
-        <div class="col-4 border border-primary"></div>
       </div>
 
       <div class="row ">
-        <div class="col-2 border border-primary"> </div>
 
-        <div class="col-6 col-auto border border-primary input-group">
-          <input id="textarea" type="text" placeholder="Enter your message " style="width: 85%">
+        <div class="col-3 border border-primary"> </div>
+
+        <div class="col-5 col-auto border border-primary input-group">
+          <input id="privateText" type="text" placeholder="Enter your message " style="width: 85%">
           <div class="input-group-prepend">
             <button class="btn btn-primary" onclick="sendMessage()">Send</button>
           </div>
         </div>
 
-
         <div class="col-4 col-auto border border-primary input-group">
-          <input type="text" placeholder="Enter your message " style="width: 80%">
+          <input id="publicText" type="text" placeholder="Enter your message " style="width: 80%">
           <div class="input-group-prepend">
-            <button class="btn btn-primary">Send</button>
+            <button class="btn btn-primary" onclick="sendPublicMessage()">Send</button>
           </div>
         </div>
+
       </div>
 
     </div>
+
   </div>
+
 
   <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    var socket = io.connect('http://localhost:4000/');
+    const socket = io.connect('http://localhost:4000/');
     let name;
+    let allMess;
     let username;
+    const chat_form = $(".chat-form");
+
     // Add a username
     $(".username-form").on("submit", function () {
-      console.log('join')
 
       username = document.getElementById('username').value;
 
@@ -94,44 +102,104 @@
       // Remove this form and show the chat form
       $(this).remove();
       $("#username").text(username);
+      $("#uName").text(username);
       chat_form.show();
+
       return false;
+
     });
 
-    function buttonClick(username) {
-      name = username;
-      console.log(name);
+    //Send Public Message to the server 
+    function sendPublicMessage() {
+
+      let publicData = {
+        "author": username,
+        "message": document.getElementById("publicText").value
+      };
+
+      // Send the message to the server      
+      socket.emit("public-message", publicData);
+
+      document.getElementById("publicText").value = ""
+      return false;
+
     }
 
-    // Chat form
-    var chat_form = $(".chat-form");
+    //recive and show public messages 
+    socket.on('public-message', function (msg) {
 
+      if (Array.isArray(msg)) {
+        for (const messageInfo of msg) {
+          $('#publicMessages').append($('<li>').text(messageInfo.author + ": " + messageInfo.message));
+        }
+      } else {
+        $('#publicMessages').append($('<li>').text(msg.author + ": " + msg.message));
+      }
+
+
+    });
+
+    function buttonClick(reciver) {
+      const data = {
+        "username": username,
+        "reciver": reciver
+      };
+      socket.emit("private-chat", data);
+      name = reciver;
+      $("#uName").text(username + " - " + name);
+      document.getElementById("messages").innerHTML = "";
+      return false;
+    }
+
+    document.getElementById('privateText').addEventListener("keyup", function (event) {
+      // Number 13 is the "Enter" key on the keyboard
+      if (event.keyCode === 13) {
+        event.preventDefault();
+
+        sendMessage();
+      }
+    });
+
+    document.getElementById('publicText').addEventListener("keyup", function (event) {
+      // Number 13 is the "Enter" key on the keyboard
+      if (event.keyCode === 13) {
+        event.preventDefault();
+
+        sendPublicMessage();
+      }
+    });
+
+    //send private message to the server
     function sendMessage() {
+
       const data = {
         "sendername": username,
         "username": name,
-        "content": document.getElementById("textarea").value
+        "content": document.getElementById("privateText").value
       };
-      // Send the message to the server
+
+      // Send the message to the server      
       socket.emit("private-message", data);
-      console.log(username);
 
       $("#messages").append($("<li>", {
         "text": `${data.sendername}: ${data.content}`
       }));
 
       // Empty the form
-      $(this).find("textarea").val('');
+      document.getElementById("privateText").value = ""
       return false;
     }
 
     // Whenever we receieve a message, append it to the <ul>
     socket.on("add-message", function (data) {
-      $("#messages").append($("<li>", {
-        "text": `${data.sendername}: ${data.content}`
-      }));
+      if (data.sendername == name) {
+        $("#messages").append($("<li>", {
+          "text": `${data.sendername}: ${data.content}`
+        }));
+      }
     });
 
+    //recive message 
     socket.on("getAllMessages", function (messages) {
       for (const messageInfo of messages) {
         $("#messages").append($("<li>", {
@@ -140,27 +208,30 @@
       }
     });
 
+    //add card for each user 
     socket.on("getUsers", (users) => {
       let cards = ``;
       for (const user of users) {
-        const card = `<div class="card mb-3" style="max-width: 540px;">
+        if (user.name != username) {
+          const card = `
+          <div class="card mb-3" style="max-width: 540px;">
             <div class="row no-gutters">
-              <div class="col-md-5">
-                <img src="https://img.icons8.com/color/1600/circled-user-male-skin-type-1-2.png" class="card-img"
-                  alt="..." style="margin-top: 5px">
+              <div class="col-md-5" >
+                <img style="max-width:60px; max-height:60px;margin:10px 0 0 10px" src="http://crvsinnovations.net/wp-content/uploads/2018/02/Empty-Icon.png" class="card-img"
+                  alt="..." >
               </div>
               <div class="col-md-7">
                 <div class="card-body">
-                  <button type="button" class="btn btn-primary" onclick="buttonClick('${user.uid}')">${user.name}</button>
+                  <button type="button" id=${user.uid} class="btn btn-primary" onclick="buttonClick('${user.uid}')">${user.name}</button>
                 </div>
               </div>
             </div>
           </div>
           `;
-        cards += card;
-      }
-      
 
+          cards += card;
+        }
+      }
       document.getElementById('friends').insertAdjacentHTML('beforeend', cards);
     });
   </script>

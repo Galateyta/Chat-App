@@ -1,5 +1,6 @@
 const User = require('../models/user.js');
 
+
 async function addUser(user) {
     try {
         const foundUser = await User.find({
@@ -9,8 +10,7 @@ async function addUser(user) {
             throw new Error();
         }
 
-        console.error('err', `User already saved`);
-        console.log("aaaaaa" + foundUser[0].uid);
+        console.log(`User already saved`);
         return foundUser[0].uid;
     } catch {
         const newUser = new User(user);

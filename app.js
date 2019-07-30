@@ -1,13 +1,14 @@
-// var app = require('http').createServer(handler)
 const express = require('express');
 const app = express();
 const fs = require('fs');
 const userController = require('./controllers/user.js');
+const publicChat = require('./controllers/publicChat.js');
 
 const server = app.listen(4000);
 const io = require('socket.io')(server);
 
 var clients = {};
+let uid;
 
 console.log("server running 4000 port");
 app.get('/', (req, res) => {
@@ -23,9 +24,31 @@ app.get('/', (req, res) => {
 });
 
 io.sockets.on('connection', function (socket) {
+  //send and recive public message
+  socket.on('public-message', function (publicData) {
+    io.emit('public-message', publicData);
+    const updateMess = {
+      author: publicData.author,
+      message: publicData.message
+    }
+    
+    publicChat.addPublicChat(updateMess);
+  });
+
+  socket.on('private-chat', async function (data) {
+    const user = await userController.getUsers({
+      uid: data.username
+    });
+
+    for (const chat of user[0].chats) {
+      if (chat.friendId == data.reciver) {
+        io.sockets.connected[clients[data.username].socket].emit("getAllMessages", chat.messages);
+      }
+    }
+  });
+
   socket.on('add-user', async (data) => {
-    console.log('add-user');
-    let uid = data.username;
+    uid = data.username;
     const body = {
       uid: uid,
       name: data.username,
@@ -35,31 +58,27 @@ io.sockets.on('connection', function (socket) {
 
     const result = await userController.addUser(body);
     if (result) {
-      console.log('there is user by id', result);
       uid = result;
     }
 
     clients[uid] = {
       "socket": socket.id
     };
-
-    const user = await userController.getUsers({uid: uid});
-    console.log(user);
-    let messages = [];
-    for (const chat of user[0].chats) {
-      messages = messages.concat(chat.messages);
+    try {
+      const messages = await publicChat.getPublicChat();
+      io.sockets.connected[clients[uid].socket].emit("public-message", messages);
+    } catch {
+      console.log("public chat not found");
     }
-    
-    io.sockets.connected[clients[uid].socket].emit("getAllMessages", messages);
 
     const users = await userController.getUsers({});
     io.sockets.connected[clients[uid].socket].emit("getUsers", users);
-
-    console.log(clients);
   });
 
   socket.on('private-message', async (data) => {
     console.log("Sender: " + data.sendername + " Sending: " + data.content + " to " + data.username);
+    uid = data.username;
+
     const senderuser = await userController.getUsers({
       name: data.sendername
     });
@@ -68,7 +87,6 @@ io.sockets.on('connection', function (socket) {
     const recuser = await userController.getUsers({
       name: data.username
     });
-    console.log(data.username, recuser);
     const recUid = recuser[0] ? recuser[0].uid : null
 
     if (clients[recUid]) {
@@ -81,25 +99,41 @@ io.sockets.on('connection', function (socket) {
           break;
         }
       }
-      console.log('found1', found);
       if (found) {
         const update = {
           $push: {
-            'chats.$.messages': {author: data.sendername, message: data.content}
+            'chats.$.messages': {
+              author: data.sendername,
+              message: data.content
+            }
           }
-        }        
-        userController.updateUser({name: data.sendername, 'chats.friendId': recUid}, update, {runValidators: true})
+        }
+        userController.updateUser({
+          name: data.sendername,
+          'chats.friendId': recUid
+        }, update, {
+          runValidators: true
+        })
+
       } else {
         const update = {
-          chats: [{
-            friendId: recUid,
-            messages: [{author: data.sendername, message: data.content}],
-          }]
+          $push: {
+            "chats": {
+              friendId: recUid,
+              messages: [{
+                author: data.sendername,
+                message: data.content
+              }]
+            }
+          }
         }
-        userController.updateUser({name: data.sendername}, update, {runValidators: true})
+        userController.updateUser({
+          name: data.sendername
+        }, update, {
+          runValidators: true
+        })
       }
-
-      // -----------------------------------------------------------------
+      // ------------------------------- Reciever db update ----------------------------------
       found = false;
       for (const chat of recuser[0].chats) {
         if (chat.friendId === senderUid) {
@@ -110,21 +144,117 @@ io.sockets.on('connection', function (socket) {
       if (found) {
         const update = {
           $push: {
-            'chats.$.messages': {author: senderUid, message: data.content}
+            'chats.$.messages': {
+              author: data.senderUid,
+              message: data.content
+            }
           }
         }
-        userController.updateUser({name: data.username, 'chats.friendId': data.sendername}, update, {runValidators: true})
+        userController.updateUser({
+          name: data.username,
+          'chats.friendId': recUid
+        }, update, {
+          runValidators: true
+        })
 
       } else {
         const update = {
-          chats: [{
-            friendId: senderUid,
-            messages: [{author: data.sendername, message: data.content}],
-          }]
+          $push: {
+            "chats": {
+              friendId: senderUid,
+              messages: [{
+                author: data.sendername,
+                message: data.content
+              }]
+            }
+          }
         }
-        userController.updateUser({name: data.username}, update, {runValidators: true})
+        userController.updateUser({
+          name: data.username
+        }, update, {
+          runValidators: true
+        })
       }
+
     } else {
+
+      const user = await userController.getUsers({
+        uid: data.username
+      });
+      let flag = 0;
+      for (const chat of user[0].chats) {
+        if (chat.friendId === data.sendername) {
+          flag = 1;
+          break;
+        }
+      }
+
+      if (flag === 0) {
+        const update = {
+          $push: {
+            "chats": {
+              friendId: recUid,
+              messages: [{
+                author: data.sendername,
+                message: data.content
+              }]
+            }
+          }
+        }
+
+        userController.updateUser({
+          name: data.sendername
+        }, update, {
+          runValidators: true
+        })
+        const update1 = {
+          $push: {
+            "chats": {
+              friendId: senderUid,
+              messages: [{
+                author: data.sendername,
+                message: data.content
+              }]
+            }
+          }
+        }
+        userController.updateUser({
+          name: data.username
+        }, update1, {
+          runValidators: true
+        })
+      } else {
+        const update = {
+          $push: {
+            'chats.$.messages': {
+              author: data.sendername,
+              message: data.content
+            }
+          }
+        }
+        userController.updateUser({
+          name: data.sendername,
+          'chats.friendId': recUid
+        }, update, {
+          runValidators: true
+        })
+
+        const update1 = {
+          $push: {
+            'chats.$.messages': {
+              author: data.sendername,
+              message: data.content
+            }
+          }
+        };
+        userController.updateUser({
+          name: data.username,
+          'chats.friendId': data.sendername
+        }, update1, {
+          runValidators: true
+        })
+
+      }
       console.log("User does not exist: " + recUid);
     }
   });
@@ -138,5 +268,4 @@ io.sockets.on('connection', function (socket) {
       }
     }
   })
-
 });
