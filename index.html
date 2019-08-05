@@ -93,22 +93,23 @@
     $(".username-form").on("submit", function () {
 
       username = document.getElementById('username').value;
-	if(username.length < 3) {
-}else {
+      if(username.length < 3) {
+	      alert("Name must contain at least 3 characters");
+      }else {
 
-      // Tell the server about it
-      socket.emit("add-user", {
-        "username": username
-      });
-	
-      // Remove this form and show the chat form
-      $(this).remove();
-      $("#username").text(username);
-      $("#uName").text(username);
-      chat_form.show();
+        // Tell the server about it
+        socket.emit("add-user", {
+          "username": username
+        });
+    
+        // Remove this form and show the chat form
+        $(this).remove();
+        $("#username").text(username);
+        $("#uName").text(username);
+        chat_form.show();
 
-      return false;
-}
+        return false;
+      }
 
     });
 
@@ -174,23 +175,23 @@
 
     //send private message to the server
     function sendMessage() {
-     if(name.length > 0) { 
-      const data = {
-        "sendername": username,
-        "username": name,
-        "content": document.getElementById("privateText").value
-      };
+      if(name.length > 0) { 
+        const data = {
+          "sendername": username,
+          "username": name,
+          "content": document.getElementById("privateText").value
+        };
 
-      // Send the message to the server      
-      socket.emit("private-message", data);
+        // Send the message to the server      
+        socket.emit("private-message", data);
 
-      $("#messages").append($("<li>", {
-        "text": `${data.sendername}: ${data.content}`
-      }));
+        $("#messages").append($("<li>", {
+          "text": `${data.sendername}: ${data.content}`
+        }));
 
-      // Empty the form
-      document.getElementById("privateText").value = ""
-      return false;
+        // Empty the form
+        document.getElementById("privateText").value = ""
+        return false;
       }
     }
 
