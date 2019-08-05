@@ -174,7 +174,7 @@
 
     //send private message to the server
     function sendMessage() {
-
+     if(name.length >0 0) { 
       const data = {
         "sendername": username,
         "username": name,
@@ -191,6 +191,7 @@
       // Empty the form
       document.getElementById("privateText").value = ""
       return false;
+      }
     }
 
     // Whenever we receieve a message, append it to the <ul>
