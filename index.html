@@ -93,12 +93,14 @@
     $(".username-form").on("submit", function () {
 
       username = document.getElementById('username').value;
+	if(username.length < 3) {
+}else {
 
       // Tell the server about it
       socket.emit("add-user", {
         "username": username
       });
-
+	
       // Remove this form and show the chat form
       $(this).remove();
       $("#username").text(username);
@@ -106,6 +108,7 @@
       chat_form.show();
 
       return false;
+}
 
     });
 
